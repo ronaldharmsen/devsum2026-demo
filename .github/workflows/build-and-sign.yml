@@ -64,6 +64,8 @@ jobs:
       - name: Sign image (keyless via OIDC)
         run: |
           cosign sign --yes \
+            --new-bundle-format=false \
+            --use-signing-config=false \
             ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
         # No --key flag, no secrets. cosign trades the workflow's OIDC token
         # at Fulcio for a 10-minute cert, signs the digest, publishes the
