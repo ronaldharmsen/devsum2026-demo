@@ -1,4 +1,4 @@
-# devsum2026 — DevSum 2026 companion repo
+# devsum2026. DevSum 2026 companion repo
 
 Companion repository for the **DevSum 2026** talk *"Locking Down Containers:
 Developer-Friendly Security for Kubernetes Workloads"*.
@@ -16,7 +16,7 @@ On every push to `main` (and on manual `workflow_dispatch`):
 1. **Build** `Dockerfile` → ASP.NET Core 10 chiseled image, non-root.
 2. **Push** to `ghcr.io/ronaldharmsen/devsum2026:<sha>` and `:latest`.
 3. **Trivy** scans the pushed image; the build fails on any unfixed HIGH/CRITICAL CVE.
-4. **Cosign** signs the image **keyless** via Sigstore — no private key on disk, no
+4. **Cosign** signs the image **keyless** via Sigstore. No private key on disk, no
    secret in GitHub. The workflow's OIDC token is the identity; Sigstore's Fulcio
    issues a short-lived certificate and the signature is logged to Rekor.
 
@@ -32,7 +32,7 @@ attestors:
       subject: https://github.com/ronaldharmsen/devsum2026/.github/workflows/build-and-sign.yml@refs/heads/main
 ```
 
-No public key is stored — Kyverno asks Sigstore to vouch that the named
+No public key is stored. Kyverno asks Sigstore to vouch that the named
 GitHub Actions workflow really did sign that image digest, on a specific
 branch.
 

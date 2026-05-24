@@ -72,7 +72,7 @@ jobs:
           image-ref: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
           format: cyclonedx
           output: sbom.cyclonedx.json
-          # SBOM generation only — no gating here.
+          # SBOM generation only. No gating here.
 
       - uses: sigstore/cosign-installer@v4.1.2
 
