@@ -1,13 +1,20 @@
-name: Build, Scan, Sign
+name: Build, Scan, Sign, Attest SBOM
 
 # Companion workflow for the DevSum 2026 talk "Locking Down Containers".
-# Produces a signed, scanned .NET 10 chiseled image at:
-#   ghcr.io/ronaldharmsen/devsum2026-demo:<sha>
-#   ghcr.io/ronaldharmsen/devsum2026-demo:latest
+# Produces a signed, scanned, SBOM-attested .NET 10 chiseled image at:
+#   ghcr.io/ronaldharmsen/devsum2026:<sha>
+#   ghcr.io/ronaldharmsen/devsum2026:latest
 #
-# Signing is keyless via Sigstore — the workflow's OIDC token IS the
-# identity. Verification policies (Kyverno) pin on this workflow's
-# subject + issuer.
+# Per build, this workflow emits:
+#   1. The image itself.
+#   2. A keyless cosign signature (Sigstore + GitHub OIDC, no key on
+#      disk, no secret in GitHub).
+#   3. A signed CycloneDX SBOM as a cosign attestation, attached next
+#      to the image. Consumers (Kyverno admission, Trivy Operator at
+#      runtime) can fetch the SBOM and run live CVE checks against it
+#      without re-pulling the image itself.
+#
+# Verification policies pin on this workflow's subject + issuer.
 
 on:
   push:
@@ -59,6 +66,14 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
 
+      - name: Generate CycloneDX SBOM with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+          format: cyclonedx
+          output: sbom.cyclonedx.json
+          # SBOM generation only — no gating here.
+
       - uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign image (keyless via OIDC)
@@ -67,6 +82,28 @@ jobs:
             --new-bundle-format=false \
             --use-signing-config=false \
             ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
-        # No --key flag, no secrets. cosign trades the workflow's OIDC token
-        # at Fulcio for a 10-minute cert, signs the digest, publishes the
-        # cert + Rekor entry. The cert's subject is this workflow's URI.
+        # No --key flag, no secrets. cosign trades the workflow's OIDC
+        # token at Fulcio for a 10-minute cert, signs the digest,
+        # publishes the cert + Rekor entry. The cert's subject is this
+        # workflow's URI. Signature is stored at <image>:sha256-<d>.sig.
+
+      - name: Attest CycloneDX SBOM (signed in-toto envelope)
+        run: |
+          cosign attest --yes \
+            --new-bundle-format=false \
+            --use-signing-config=false \
+            --type cyclonedx \
+            --predicate sbom.cyclonedx.json \
+            ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+        # cosign wraps sbom.cyclonedx.json in a DSSE envelope with
+        # predicateType https://cyclonedx.org/bom, signs it keyless with
+        # the same workflow identity, and pushes the attestation as
+        # <image>:sha256-<d>.att. Anyone with the cert chain can fetch
+        # it, verify provenance, and read the SBOM line by line.
+
+      - name: Upload SBOM as workflow artifact (for download/inspection)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cyclonedx.json
+          retention-days: 30
