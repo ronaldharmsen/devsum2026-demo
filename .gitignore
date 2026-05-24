@@ -1,0 +1,6 @@
+dotnet/bin/
+dotnet/obj/
+dotnet/.vs/
+dotnet/*.user
+dotnet/Properties/launchSettings.json
+.DS_Store

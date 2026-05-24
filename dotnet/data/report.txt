@@ -1,0 +1,10 @@
+DevSum 2026 - Monthly Sales Report
+===================================
+Region: Nordics
+Period: March 2026
+
+Total Revenue: €1,234,567
+Active Users:  42,000
+Churn Rate:    2.3%
+
+This is a legitimate file served by the download endpoint.
